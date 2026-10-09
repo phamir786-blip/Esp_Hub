@@ -83,6 +83,7 @@ fun DashboardScreen(
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val compactHeader = maxWidth < 400.dp
         val gridColumns = when {
             maxWidth >= 840.dp -> 4
             maxWidth >= 600.dp -> 3
@@ -103,7 +104,7 @@ fun DashboardScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "ESP32 Smart Hub",
-                            style = if (maxWidth < 400.dp) {
+                            style = if (compactHeader) {
                                 MaterialTheme.typography.titleMedium
                             } else {
                                 MaterialTheme.typography.headlineMedium
@@ -112,7 +113,7 @@ fun DashboardScreen(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        if (maxWidth >= 400.dp) {
+                        if (!compactHeader) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
                                 shape = RoundedCornerShape(50),
