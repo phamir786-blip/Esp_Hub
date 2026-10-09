@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -92,7 +93,7 @@ fun EspDeviceCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(cardHeight)
+            .heightIn(min = cardHeight)
             .clip(RoundedCornerShape(22.dp))
             .clickable { onOpenWebApp(device) }
             .testTag("device_card_${device.id}"),
