@@ -148,7 +148,7 @@ fun EspDeviceCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(14.dp),
+                    .padding(10.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 // Top Row: Category Icon + Online Status & Menu
