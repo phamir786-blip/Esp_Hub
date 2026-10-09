@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -152,11 +153,13 @@ fun EspDeviceCard(
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 // Top Row: Category Icon + Online Status & Menu
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val compactStatus = maxWidth < 160.dp
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = category.accentColor.copy(alpha = 0.20f),
@@ -176,7 +179,8 @@ fun EspDeviceCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         StatusBadgePill(
                             isOnline = device.isOnline,
-                            pingMs = if (showPingLatency) device.lastPingMs else null
+                            pingMs = if (showPingLatency) device.lastPingMs else null,
+                            compact = compactStatus
                         )
 
                         Box {
@@ -240,6 +244,7 @@ fun EspDeviceCard(
                                 )
                             }
                         }
+                    }
                     }
                 }
 
@@ -313,7 +318,8 @@ fun EspDeviceCard(
 @Composable
 private fun StatusBadgePill(
     isOnline: Boolean,
-    pingMs: Int?
+    pingMs: Int?,
+    compact: Boolean
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "online_pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -328,6 +334,8 @@ private fun StatusBadgePill(
 
     val dotColor = if (isOnline) OnlineEmerald else OfflineSlate
     val statusText = when {
+        compact && isOnline -> "On"
+        compact -> "Off"
         isOnline && pingMs != null -> "${pingMs}ms"
         isOnline -> "Online"
         else -> "Offline"
