@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.model.EspDevice
 import com.example.data.preferences.HubSettings
@@ -101,30 +102,39 @@ fun DashboardScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "ESP32 Smart Hub",
-                            style = MaterialTheme.typography.headlineMedium
+                            style = if (maxWidth < 400.dp) {
+                                MaterialTheme.typography.titleMedium
+                            } else {
+                                MaterialTheme.typography.headlineMedium
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = OnlineEmerald.copy(alpha = 0.14f),
-                            border = BorderStroke(1.dp, OnlineEmerald.copy(alpha = 0.4f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        if (maxWidth >= 400.dp) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = OnlineEmerald.copy(alpha = 0.14f),
+                                border = BorderStroke(1.dp, OnlineEmerald.copy(alpha = 0.4f))
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(OnlineEmerald)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    text = "${uiState.onlineCount}/${uiState.allDevices.size} Online",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = OnlineEmerald
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(OnlineEmerald)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "${uiState.onlineCount}/${uiState.allDevices.size} Online",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = OnlineEmerald
+                                    )
+                                }
                             }
                         }
                     }
