@@ -57,6 +57,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -143,7 +144,9 @@ fun TuyaCategorizedControlPanel(
                         Text(
                             text = tab.title,
                             style = MaterialTheme.typography.labelLarge,
-                            color = if (isSelected) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isSelected) {
+                                if (accent.luminance() > 0.55f) Color.Black else Color.White
+                            } else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
