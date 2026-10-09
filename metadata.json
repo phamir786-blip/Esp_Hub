@@ -1,0 +1,6 @@
+{
+  "name": "ESP32 Smart Hub",
+  "description": "Tuya-style local ESP32 smart home hub with automatic mDNS discovery, customizable device cards, AMOLED dark theme, and frameless native WebView control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

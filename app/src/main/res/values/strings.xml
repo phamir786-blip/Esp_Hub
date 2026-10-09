@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">ESP32 Smart Hub</string>
+    <string name="tab_home">My Home</string>
+    <string name="tab_radar">mDNS Radar</string>
+    <string name="tab_settings">Settings</string>
+    <string name="add_device">Add ESP32 Device</string>
+    <string name="scan_network">Scan Home Wi-Fi (mDNS)</string>
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_resolving">Resolving mDNS…</string>
+    <string name="version_string">Nightly 1.0.0</string>
+    <string name="license_title">MIT Free &amp; Open Source License</string>
+</resources>
