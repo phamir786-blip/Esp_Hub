@@ -80,7 +80,14 @@ enum class TuyaControlCategoryTab(val title: String) {
     SETTINGS("Settings")
 }
 
-private fun controlTab(label: String): TuyaControlCategoryTab {
+private fun controlTab(label: String): TuyaControlCategoryTab = controlTab("", label)
+
+private fun controlTab(category: String, label: String): TuyaControlCategoryTab {
+    when (category.lowercase()) {
+        "timers" -> return TuyaControlCategoryTab.TIMERS
+        "settings" -> return TuyaControlCategoryTab.SETTINGS
+        "main" -> return TuyaControlCategoryTab.MAIN
+    }
     val text = label.lowercase()
     return when {
         listOf("timer", "schedule", "countdown", "auto off", "auto-off", "duration", "alarm", "on time", "off time", "repeat days")
@@ -107,11 +114,11 @@ fun TuyaCategorizedControlPanel(
     var selectedCategoryTab by remember { mutableStateOf(TuyaControlCategoryTab.MAIN) }
     val accent = device.category.accentColor
 
-    val visibleToggles = schema.toggles.filter { controlTab(it.label) == selectedCategoryTab }
-    val visibleSliders = schema.sliders.filter { controlTab(it.label) == selectedCategoryTab }
-    val visibleColors = schema.colors.filter { controlTab(it.label) == selectedCategoryTab }
-    val visibleModes = schema.modes.filter { controlTab(it.label) == selectedCategoryTab }
-    val visibleActions = schema.actions.filter { controlTab(it.label) == selectedCategoryTab }
+    val visibleToggles = schema.toggles.filter { controlTab(it.category, it.label) == selectedCategoryTab }
+    val visibleSliders = schema.sliders.filter { controlTab(it.category, it.label) == selectedCategoryTab }
+    val visibleColors = schema.colors.filter { controlTab(it.category, it.label) == selectedCategoryTab }
+    val visibleModes = schema.modes.filter { controlTab(it.category, it.label) == selectedCategoryTab }
+    val visibleActions = schema.actions.filter { controlTab(it.category, it.label) == selectedCategoryTab }
     val visibleTelemetry = if (selectedCategoryTab == TuyaControlCategoryTab.MAIN) schema.telemetry else emptyList()
     val hasVisibleControls = visibleToggles.isNotEmpty() || visibleSliders.isNotEmpty() ||
         visibleColors.isNotEmpty() || visibleModes.isNotEmpty() || visibleActions.isNotEmpty() ||

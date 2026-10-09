@@ -12,7 +12,8 @@ data class BridgedToggle(
     val id: String,
     val label: String,
     val isChecked: Boolean,
-    val kind: String // "checkbox" or "button"
+    val kind: String, // "checkbox" or "button"
+    val category: String = "main"
 )
 
 data class BridgedSlider(
@@ -22,13 +23,15 @@ data class BridgedSlider(
     val min: Float,
     val max: Float,
     val step: Float,
-    val unit: String
+    val unit: String,
+    val category: String = "main"
 )
 
 data class BridgedColorPicker(
     val id: String,
     val label: String,
-    val hexColor: String
+    val hexColor: String,
+    val category: String = "main"
 )
 
 data class BridgedSelectOption(
@@ -40,7 +43,8 @@ data class BridgedSelectMode(
     val id: String,
     val label: String,
     val selectedValue: String,
-    val options: List<BridgedSelectOption>
+    val options: List<BridgedSelectOption>,
+    val category: String = "main"
 )
 
 data class BridgedTelemetry(
@@ -50,7 +54,8 @@ data class BridgedTelemetry(
 
 data class BridgedAction(
     val id: String,
-    val label: String
+    val label: String,
+    val category: String = "main"
 )
 
 data class EspParsedWebSchema(
@@ -85,7 +90,8 @@ class EspWebDomBridge {
                             id = obj.optString("id"),
                             label = obj.optString("label", "Switch ${i + 1}"),
                             isChecked = obj.optBoolean("checked", false),
-                            kind = obj.optString("kind", "checkbox")
+                            kind = obj.optString("kind", "checkbox"),
+                            category = obj.optString("category", "main")
                         )
                     )
                 }
@@ -104,7 +110,8 @@ class EspWebDomBridge {
                             min = obj.optDouble("min", 0.0).toFloat(),
                             max = obj.optDouble("max", 100.0).toFloat(),
                             step = obj.optDouble("step", 1.0).toFloat().coerceAtLeast(0.1f),
-                            unit = obj.optString("unit", "%")
+                            unit = obj.optString("unit", "%"),
+                            category = obj.optString("category", "main")
                         )
                     )
                 }
@@ -119,7 +126,8 @@ class EspWebDomBridge {
                         BridgedColorPicker(
                             id = obj.optString("id"),
                             label = obj.optString("label", "Color"),
-                            hexColor = obj.optString("value", "#FF5A1F")
+                            hexColor = obj.optString("value", "#FF5A1F"),
+                            category = obj.optString("category", "main")
                         )
                     )
                 }
@@ -149,7 +157,8 @@ class EspWebDomBridge {
                                 id = obj.optString("id"),
                                 label = obj.optString("label", "Mode"),
                                 selectedValue = obj.optString("selectedValue"),
-                                options = opts
+                                options = opts,
+                                category = obj.optString("category", "main")
                             )
                         )
                     }
@@ -177,7 +186,8 @@ class EspWebDomBridge {
                     actionsList.add(
                         BridgedAction(
                             id = obj.optString("id"),
-                            label = obj.optString("label", "Action")
+                            label = obj.optString("label", "Action"),
+                            category = obj.optString("category", "main")
                         )
                     )
                 }
@@ -212,56 +222,114 @@ class EspWebDomBridge {
         val DOM_EXTRACTOR_JS = """
             (function() {
                 if (window.__tuyaBridgeInstalled) {
-                    window.__tuyaScanDom();
+                    if (window.__tuyaScanDom) window.__tuyaScanDom();
                     return;
                 }
                 window.__tuyaBridgeInstalled = true;
                 var idCounter = 1;
+                var ignoredWords = /\b(home|dashboard|navigation|menu|back|next|previous|cancel|close|help|about|docs|documentation|github|refresh|reload|connect|disconnect|wifi status|network status|status page)\b/i;
+                var timerWords = /\b(timer|schedule|countdown|auto[\s-]?off|auto[\s-]?on|duration|delay|repeat|weekday|weekend|sunrise|sunset|start time|stop time|on time|off time)\b/i;
+                var settingWords = /\b(setting|configuration|config|pwm frequency|frequency|freq|calibration|firmware|ota|update|network|wi[\s-]?fi|hostname|brightness limit|minimum|maximum|step size|factory reset|reboot|restart)\b/i;
+                var mainWords = /\b(power|on\/off|switch|brightness|dimming|dimmer|pwm|fade|softness|level|intensity|speed|volume|mute|color|colour|mode|effect|temperature|fan speed|play|pause|stop|preset)\b/i;
+                var actionWords = /\b(power|turn on|turn off|toggle|enable|disable|reboot|restart|reset|save|apply|start|stop|play|pause|mute|unmute|next|previous|factory reset|update|calibrate|pair)\b/i;
 
+                function clean(s) {
+                    return String(s || '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+                }
+                function visible(el) {
+                    if (!el || !el.isConnected || el.disabled || el.getAttribute('aria-hidden') === 'true') return false;
+                    var style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+                    if (style && (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')) return false;
+                    return !!(el.getClientRects && el.getClientRects().length);
+                }
+                function inNavigation(el) {
+                    return !!el.closest('nav, header, footer, [role="navigation"], [role="menubar"], .navbar, .nav, .navigation, .menu');
+                }
                 function ensureBridgeId(el) {
                     if (!el.getAttribute('data-tuya-id')) {
                         el.setAttribute('data-tuya-id', 'tuya_el_' + (idCounter++));
                     }
                     return el.getAttribute('data-tuya-id');
                 }
-
-                function findLabelFor(el, fallback) {
-                    if (el.getAttribute('aria-label')) return el.getAttribute('aria-label').trim();
-                    if (el.getAttribute('data-label')) return el.getAttribute('data-label').trim();
+                function associatedLabel(el) {
+                    var candidates = [];
+                    ['aria-label', 'data-label', 'title'].forEach(function(a) {
+                        var v = clean(el.getAttribute(a));
+                        if (v) candidates.push(v);
+                    });
                     if (el.id) {
-                        var lbl = document.querySelector('label[for="' + el.id + '"]');
-                        if (lbl && lbl.innerText.trim()) return lbl.innerText.trim();
+                        var escaped = el.id.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                        var label = null;
+                        try { label = document.querySelector('label[for="' + escaped + '"]'); } catch (_) {}
+                        if (label && clean(label.innerText || label.textContent)) candidates.push(clean(label.innerText || label.textContent));
                     }
                     var parentLabel = el.closest('label');
-                    if (parentLabel && parentLabel.innerText.trim()) {
-                        return parentLabel.innerText.trim().split('\n')[0].trim();
+                    if (parentLabel) {
+                        var labelText = clean(parentLabel.innerText || parentLabel.textContent);
+                        if (labelText) candidates.push(labelText);
+                    }
+                    if (el.labels && el.labels.length) {
+                        for (var i = 0; i < el.labels.length; i++) {
+                            var t = clean(el.labels[i].innerText || el.labels[i].textContent);
+                            if (t) candidates.push(t);
+                        }
                     }
                     var prev = el.previousElementSibling;
-                    if (prev && prev.innerText && prev.innerText.trim().length < 40) {
-                        return prev.innerText.trim().replace(/:$/, '');
+                    if (prev) {
+                        var prevText = clean(prev.innerText || prev.textContent);
+                        if (prevText && prevText.length <= 48) candidates.push(prevText.replace(/:$/, ''));
                     }
-                    var parent = el.parentElement;
-                    if (parent) {
-                        var clone = parent.cloneNode(true);
-                        var inputs = clone.querySelectorAll('input, select, button, script, style');
-                        for (var i = 0; i < inputs.length; i++) inputs[i].remove();
-                        var txt = (clone.innerText || '').trim().split('\n')[0].trim().replace(/:$/, '');
-                        if (txt && txt.length > 1 && txt.length < 42) return txt;
+                    var group = el.closest('label, fieldset, .control, .form-group, .form-row, .setting, .setting-row, .slider-container, .input-group, [role="group"]');
+                    if (group) {
+                        var heading = group.querySelector('legend, label, .label, .title, h1, h2, h3, h4, [data-label]');
+                        if (heading && heading !== el) {
+                            var h = clean(heading.innerText || heading.textContent || heading.getAttribute('data-label'));
+                            if (h && h.length <= 64) candidates.push(h);
+                        }
                     }
-                    return el.name || el.id || fallback;
+                    var fallback = clean(el.name || el.id || '');
+                    if (fallback) candidates.push(fallback.replace(/[_-]+/g, ' '));
+                    for (var c = 0; c < candidates.length; c++) {
+                        var text = clean(candidates[c]).replace(/:$/, '');
+                        if (text && text.length <= 64 && !ignoredWords.test(text)) return text;
+                    }
+                    return '';
+                }
+                function contextText(el) {
+                    var parts = [];
+                    var node = el;
+                    for (var i = 0; node && i < 4; i++, node = node.parentElement) {
+                        var heading = node.querySelector && node.querySelector('legend, h1, h2, h3, h4, [data-section], [data-group]');
+                        if (heading) {
+                            var h = clean(heading.innerText || heading.textContent || heading.getAttribute('data-section') || heading.getAttribute('data-group'));
+                            if (h && h.length < 64) parts.push(h);
+                        }
+                    }
+                    return parts.join(' ');
+                }
+                function categoryFor(label, context) {
+                    var all = label + ' ' + context;
+                    if (timerWords.test(all)) return 'timers';
+                    if (settingWords.test(all)) return 'settings';
+                    if (mainWords.test(all) || actionWords.test(all)) return 'main';
+                    return 'unknown';
+                }
+                function addUnique(list, item, seen) {
+                    var key = (item.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+                    if (!key || seen[key]) return;
+                    seen[key] = true;
+                    list.push(item);
                 }
 
                 window.__tuyaTriggerElement = function(bridgeId, newValue) {
                     var el = document.querySelector('[data-tuya-id="' + bridgeId + '"]');
-                    if (!el) return;
+                    if (!el || !visible(el)) return;
                     var tag = el.tagName.toLowerCase();
                     var type = (el.getAttribute('type') || '').toLowerCase();
-
-                    if (type === 'checkbox') {
-                        el.checked = (newValue === 'true' || newValue === true || !el.checked);
+                    if (type === 'checkbox' || type === 'radio') {
+                        el.checked = (newValue === 'true' || newValue === true);
                         el.dispatchEvent(new Event('input', { bubbles: true }));
                         el.dispatchEvent(new Event('change', { bubbles: true }));
-                        if (typeof el.onclick === 'function') el.onclick();
                     } else if (type === 'range' || type === 'number' || type === 'color' || tag === 'select') {
                         el.value = newValue;
                         el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -269,160 +337,112 @@ class EspWebDomBridge {
                     } else {
                         el.click();
                     }
-                    setTimeout(window.__tuyaScanDom, 120);
+                    window.setTimeout(window.__tuyaScanDom, 160);
                 };
 
                 window.__tuyaScanDom = function() {
-                    var payload = {
-                        title: document.title || 'ESP32 Controller',
-                        toggles: [],
-                        sliders: [],
-                        colors: [],
-                        modes: [],
-                        telemetry: [],
-                        actions: []
-                    };
+                    var payload = { title: document.title || 'ESP32 Controller', toggles: [], sliders: [], colors: [], modes: [], telemetry: [], actions: [] };
+                    var seen = { toggles: {}, sliders: {}, colors: {}, modes: {}, actions: {} };
 
-                    // 1. Checkboxes / Switches
-                    var checkboxes = document.querySelectorAll('input[type="checkbox"]');
-                    for (var i = 0; i < checkboxes.length; i++) {
-                        var cb = checkboxes[i];
-                        var id = ensureBridgeId(cb);
-                        payload.toggles.push({
-                            id: id,
-                            label: findLabelFor(cb, 'Switch ' + (i + 1)),
-                            checked: !!cb.checked,
-                            kind: 'checkbox'
-                        });
+                    var inputs = document.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+                    for (var i = 0; i < inputs.length; i++) {
+                        var el = inputs[i];
+                        if (!visible(el) || inNavigation(el)) continue;
+                        var label = associatedLabel(el);
+                        if (!label || ignoredWords.test(label)) continue;
+                        if (!mainWords.test(label) && !timerWords.test(label) && !settingWords.test(label)) continue;
+                        var id = ensureBridgeId(el);
+                        var category = categoryFor(label, contextText(el));
+                        if (category === 'unknown') continue;
+                        addUnique(payload.toggles, { id: id, label: label, checked: !!el.checked, kind: 'checkbox', category: category }, seen.toggles);
                     }
 
-                    // 2. Range Sliders
                     var ranges = document.querySelectorAll('input[type="range"]');
                     for (var j = 0; j < ranges.length; j++) {
                         var rng = ranges[j];
+                        if (!visible(rng) || inNavigation(rng)) continue;
+                        var rLabel = associatedLabel(rng);
+                        if (!rLabel || ignoredWords.test(rLabel)) continue;
+                        if (!mainWords.test(rLabel) && !timerWords.test(rLabel) && !settingWords.test(rLabel)) continue;
                         var rId = ensureBridgeId(rng);
-                        var rLabel = findLabelFor(rng, 'Level ' + (j + 1));
-                        var unit = rng.getAttribute('data-unit') || (parseFloat(rng.max || 100) === 100 ? '%' : '');
-                        payload.sliders.push({
-                            id: rId,
-                            label: rLabel,
-                            value: parseFloat(rng.value || 0),
-                            min: parseFloat(rng.min || 0),
-                            max: parseFloat(rng.max || 100),
-                            step: parseFloat(rng.step || 1),
-                            unit: unit
-                        });
+                        var rCategory = categoryFor(rLabel, contextText(rng));
+                        if (rCategory === 'unknown') continue;
+                        var rMax = parseFloat(rng.max || '100');
+                        var unit = rng.getAttribute('data-unit') || (rMax === 100 ? '%' : '');
+                        addUnique(payload.sliders, {
+                            id: rId, label: rLabel, value: parseFloat(rng.value || '0'),
+                            min: parseFloat(rng.min || '0'), max: rMax,
+                            step: parseFloat(rng.step || '1'), unit: unit, category: rCategory
+                        }, seen.sliders);
                     }
 
-                    // 3. Color Pickers
-                    var colorInputs = document.querySelectorAll('input[type="color"]');
-                    for (var c = 0; c < colorInputs.length; c++) {
-                        var clr = colorInputs[c];
-                        var cId = ensureBridgeId(clr);
-                        payload.colors.push({
-                            id: cId,
-                            label: findLabelFor(clr, 'Color'),
-                            value: clr.value || '#ff5a1f'
-                        });
+                    var colors = document.querySelectorAll('input[type="color"]');
+                    for (var c = 0; c < colors.length; c++) {
+                        var clr = colors[c];
+                        if (!visible(clr) || inNavigation(clr)) continue;
+                        var cLabel = associatedLabel(clr);
+                        if (!cLabel || ignoredWords.test(cLabel) || (!mainWords.test(cLabel) && !settingWords.test(cLabel))) continue;
+                        var colorCategory = categoryFor(cLabel, contextText(clr));
+                        if (colorCategory === 'unknown') continue;
+                        addUnique(payload.colors, { id: ensureBridgeId(clr), label: cLabel, value: clr.value || '#000000', category: colorCategory }, seen.colors);
                     }
 
-                    // 4. Select Dropdowns (Modes / Effects / Presets)
                     var selects = document.querySelectorAll('select');
                     for (var s = 0; s < selects.length; s++) {
                         var sel = selects[s];
-                        var sId = ensureBridgeId(sel);
+                        if (!visible(sel) || inNavigation(sel)) continue;
+                        var sLabel = associatedLabel(sel);
+                        if (!sLabel || ignoredWords.test(sLabel)) continue;
+                        if (!mainWords.test(sLabel) && !timerWords.test(sLabel) && !settingWords.test(sLabel)) continue;
                         var opts = [];
                         for (var o = 0; o < sel.options.length; o++) {
-                            opts.push({
-                                value: sel.options[o].value,
-                                text: (sel.options[o].text || sel.options[o].value).trim()
-                            });
+                            if (!sel.options[o].disabled) opts.push({ value: sel.options[o].value, text: clean(sel.options[o].text || sel.options[o].value) });
                         }
-                        payload.modes.push({
-                            id: sId,
-                            label: findLabelFor(sel, 'Mode ' + (s + 1)),
-                            selectedValue: sel.value,
-                            options: opts
-                        });
+                        if (opts.length < 2) continue;
+                        var modeCategory = categoryFor(sLabel, contextText(sel));
+                        if (modeCategory === 'unknown') continue;
+                        addUnique(payload.modes, { id: ensureBridgeId(sel), label: sLabel, selectedValue: sel.value, options: opts, category: modeCategory }, seen.modes);
                     }
 
-                    // 5. Buttons & Links (Categorized into Toggle Buttons vs Action Commands)
-                    var buttons = document.querySelectorAll('button, input[type="button"], input[type="submit"], a[href]');
+                    var buttons = document.querySelectorAll('button, input[type="button"], input[type="submit"], [role="button"], a[href]');
                     for (var b = 0; b < buttons.length; b++) {
                         var btn = buttons[b];
-                        var text = (btn.innerText || btn.value || btn.getAttribute('title') || '').trim();
-                        if (!text || text.length > 36) continue;
-                        var bId = ensureBridgeId(btn);
+                        if (!visible(btn) || inNavigation(btn)) continue;
+                        if (btn.matches('a[href]') && !btn.hasAttribute('role') && !btn.hasAttribute('data-action') && !btn.hasAttribute('data-toggle')) continue;
+                        var text = clean(btn.innerText || btn.value || btn.getAttribute('aria-label') || btn.getAttribute('title'));
+                        if (!text || text.length > 48 || ignoredWords.test(text)) continue;
                         var lower = text.toLowerCase();
-                        var isActiveState = btn.classList.contains('active') ||
-                            btn.classList.contains('on') ||
-                            btn.getAttribute('data-state') === 'on' ||
-                            btn.getAttribute('aria-pressed') === 'true';
-
-                        if (lower.indexOf('power') !== -1 || lower.indexOf('toggle') !== -1 ||
-                            lower === 'on' || lower === 'off' || lower.indexOf('relay') !== -1 ||
-                            lower.indexOf('mute') !== -1 || btn.hasAttribute('data-toggle')) {
-                            payload.toggles.push({
-                                id: bId,
-                                label: text,
-                                checked: isActiveState || lower.indexOf('on') !== -1,
-                                kind: 'button'
-                            });
+                        var isToggle = btn.hasAttribute('data-toggle') || btn.getAttribute('aria-pressed') !== null ||
+                            /\b(power|toggle|turn on|turn off|enable|disable|mute|unmute)\b/i.test(text);
+                        var isAction = btn.hasAttribute('data-action') || btn.hasAttribute('onclick') || actionWords.test(text);
+                        if (!isToggle && !isAction) continue;
+                        var bId = ensureBridgeId(btn);
+                        var bCategory = categoryFor(text, contextText(btn));
+                        if (bCategory === 'unknown') continue;
+                        var active = btn.classList.contains('active') || btn.classList.contains('on') ||
+                            btn.getAttribute('data-state') === 'on' || btn.getAttribute('aria-pressed') === 'true';
+                        if (isToggle) {
+                            addUnique(payload.toggles, { id: bId, label: text, checked: active, kind: 'button', category: bCategory }, seen.toggles);
                         } else {
-                            payload.actions.push({
-                                id: bId,
-                                label: text
-                            });
+                            addUnique(payload.actions, { id: bId, label: text, category: bCategory }, seen.actions);
                         }
                     }
 
-                    // 6. Telemetry / Sensor Status Readings
-                    var metricNodes = document.querySelectorAll('[data-telemetry], .metric, .sensor, .status-item, tr');
-                    for (var m = 0; m < metricNodes.length; m++) {
-                        var node = metricNodes[m];
-                        if (node.tagName.toLowerCase() === 'tr') {
-                            var cells = node.querySelectorAll('td, th');
-                            if (cells.length === 2) {
-                                var k = (cells[0].innerText || '').trim().replace(/:$/, '');
-                                var v = (cells[1].innerText || '').trim();
-                                if (k && v && k.length < 30 && v.length < 30) {
-                                    payload.telemetry.push({ label: k, value: v });
-                                }
-                            }
-                        } else {
-                            var lAttr = node.getAttribute('data-label');
-                            var vAttr = node.getAttribute('data-value') || (node.innerText || '').trim();
-                            if (lAttr && vAttr) {
-                                payload.telemetry.push({ label: lAttr, value: vAttr });
-                            }
-                        }
-                    }
-
+                    // Deliberately omit generic table rows and telemetry scraping: status text is not a control.
                     if (window.AndroidTuyaBridge && window.AndroidTuyaBridge.onDomExtracted) {
                         window.AndroidTuyaBridge.onDomExtracted(JSON.stringify(payload));
                     }
                 };
 
                 window.__tuyaScanDom();
-
                 var observer = new MutationObserver(function() {
                     if (window.__tuyaDebounce) clearTimeout(window.__tuyaDebounce);
-                    window.__tuyaDebounce = setTimeout(window.__tuyaScanDom, 180);
+                    window.__tuyaDebounce = setTimeout(window.__tuyaScanDom, 220);
                 });
-                if (document.body) {
-                    observer.observe(document.body, {
-                        childList: true,
-                        subtree: true,
-                        attributes: true,
-                        characterData: true
-                    });
-                }
+                if (document.body) observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
             })();
         """.trimIndent()
 
-        /**
-         * CSS injected when user switches to "Tuya-Styled WebView" tab so even raw HTML looks sleek.
-         */
         val TUYA_WEB_STYLE_CSS_JS = """
             (function() {
                 if (document.getElementById('__tuya_theme_css')) return;
