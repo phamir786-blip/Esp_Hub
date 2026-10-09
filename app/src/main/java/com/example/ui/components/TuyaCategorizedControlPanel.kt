@@ -75,12 +75,20 @@ import com.example.ui.webview.EspParsedWebSchema
 import kotlin.math.roundToInt
 
 enum class TuyaControlCategoryTab(val title: String) {
-    ALL("All Controls"),
-    POWER("Switches"),
-    SLIDERS("Sliders & Levels"),
-    MODES("Modes & Color"),
-    TELEMETRY("Telemetry"),
-    ACTIONS("Actions")
+    MAIN("Main"),
+    TIMERS("Timers"),
+    SETTINGS("Settings")
+}
+
+private fun controlTab(label: String): TuyaControlCategoryTab {
+    val text = label.lowercase()
+    return when {
+        listOf("timer", "schedule", "countdown", "auto off", "auto-off", "duration", "alarm", "on time", "off time", "repeat days")
+            .any(text::contains) -> TuyaControlCategoryTab.TIMERS
+        listOf("setting", "config", "ota", "firmware", "network", "wi-fi", "wifi", "frequency", "advanced", "calibration", "factory reset", "reboot", "restart", "update")
+            .any(text::contains) -> TuyaControlCategoryTab.SETTINGS
+        else -> TuyaControlCategoryTab.MAIN
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -96,11 +104,20 @@ fun TuyaCategorizedControlPanel(
     onTriggerAction: (BridgedAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedCategoryTab by remember { mutableStateOf(TuyaControlCategoryTab.ALL) }
+    var selectedCategoryTab by remember { mutableStateOf(TuyaControlCategoryTab.MAIN) }
     val accent = device.category.accentColor
 
-    val primaryToggle = schema.toggles.firstOrNull()
-    val primarySlider = schema.sliders.firstOrNull()
+    val visibleToggles = schema.toggles.filter { controlTab(it.label) == selectedCategoryTab }
+    val visibleSliders = schema.sliders.filter { controlTab(it.label) == selectedCategoryTab }
+    val visibleColors = schema.colors.filter { controlTab(it.label) == selectedCategoryTab }
+    val visibleModes = schema.modes.filter { controlTab(it.label) == selectedCategoryTab }
+    val visibleActions = schema.actions.filter { controlTab(it.label) == selectedCategoryTab }
+    val visibleTelemetry = if (selectedCategoryTab == TuyaControlCategoryTab.MAIN) schema.telemetry else emptyList()
+    val hasVisibleControls = visibleToggles.isNotEmpty() || visibleSliders.isNotEmpty() ||
+        visibleColors.isNotEmpty() || visibleModes.isNotEmpty() || visibleActions.isNotEmpty() ||
+        visibleTelemetry.isNotEmpty()
+    val primaryToggle = visibleToggles.firstOrNull()
+    val primarySlider = visibleSliders.firstOrNull()
 
     LazyColumn(
         modifier = modifier
@@ -155,18 +172,18 @@ fun TuyaCategorizedControlPanel(
         }
 
         // 3. Category: Power & Switches
-        if ((selectedCategoryTab == TuyaControlCategoryTab.ALL || selectedCategoryTab == TuyaControlCategoryTab.POWER) &&
-            schema.toggles.isNotEmpty()
+        if ((true) &&
+            visibleToggles.isNotEmpty()
         ) {
             item {
                 TuyaCategorySectionCard(
                     title = "Power & Switches",
-                    subtitle = "${schema.toggles.size} toggle controls mapped from web-app",
+                    subtitle = "${visibleToggles.size} toggle controls mapped from web-app",
                     icon = Icons.Filled.PowerSettingsNew,
                     accentColor = accent
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        schema.toggles.forEach { toggle ->
+                        visibleToggles.forEach { toggle ->
                             TuyaToggleControlRow(
                                 toggle = toggle,
                                 accentColor = accent,
@@ -179,8 +196,8 @@ fun TuyaCategorizedControlPanel(
         }
 
         // 4. Category: Sliders & Levels (Brightness, Volume, Speed, Temperature, PWM)
-        if ((selectedCategoryTab == TuyaControlCategoryTab.ALL || selectedCategoryTab == TuyaControlCategoryTab.SLIDERS) &&
-            schema.sliders.isNotEmpty()
+        if ((true) &&
+            visibleSliders.isNotEmpty()
         ) {
             item {
                 TuyaCategorySectionCard(
@@ -190,7 +207,7 @@ fun TuyaCategorizedControlPanel(
                     accentColor = accent
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        schema.sliders.forEach { slider ->
+                        visibleSliders.forEach { slider ->
                             TuyaSliderControlCard(
                                 slider = slider,
                                 accentColor = accent,
@@ -203,8 +220,8 @@ fun TuyaCategorizedControlPanel(
         }
 
         // 5. Category: Modes, Scenes & RGB Color Pickers
-        if ((selectedCategoryTab == TuyaControlCategoryTab.ALL || selectedCategoryTab == TuyaControlCategoryTab.MODES) &&
-            (schema.colors.isNotEmpty() || schema.modes.isNotEmpty())
+        if ((true) &&
+            (visibleColors.isNotEmpty() || visibleModes.isNotEmpty())
         ) {
             item {
                 TuyaCategorySectionCard(
@@ -214,14 +231,14 @@ fun TuyaCategorizedControlPanel(
                     accentColor = accent
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        schema.colors.forEach { colorPicker ->
+                        visibleColors.forEach { colorPicker ->
                             TuyaColorSwatchSelector(
                                 colorPicker = colorPicker,
                                 onPickHex = { hex -> onTriggerColor(colorPicker, hex) }
                             )
                         }
 
-                        schema.modes.forEach { modeSelect ->
+                        visibleModes.forEach { modeSelect ->
                             Column {
                                 Text(
                                     text = modeSelect.label,
@@ -259,8 +276,8 @@ fun TuyaCategorizedControlPanel(
         }
 
         // 6. Category: Live Telemetry & Status Readouts
-        if ((selectedCategoryTab == TuyaControlCategoryTab.ALL || selectedCategoryTab == TuyaControlCategoryTab.TELEMETRY) &&
-            schema.telemetry.isNotEmpty()
+        if ((true) &&
+            visibleTelemetry.isNotEmpty()
         ) {
             item {
                 TuyaCategorySectionCard(
@@ -270,7 +287,7 @@ fun TuyaCategorizedControlPanel(
                     accentColor = accent
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        schema.telemetry.chunked(2).forEach { rowPair ->
+                        visibleTelemetry.chunked(2).forEach { rowPair ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -293,8 +310,8 @@ fun TuyaCategorizedControlPanel(
         }
 
         // 7. Category: Quick Commands & Actions
-        if ((selectedCategoryTab == TuyaControlCategoryTab.ALL || selectedCategoryTab == TuyaControlCategoryTab.ACTIONS) &&
-            schema.actions.isNotEmpty()
+        if ((true) &&
+            visibleActions.isNotEmpty()
         ) {
             item {
                 TuyaCategorySectionCard(
@@ -308,7 +325,7 @@ fun TuyaCategorizedControlPanel(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        schema.actions.forEach { action ->
+                        visibleActions.forEach { action ->
                             FilledTonalButton(
                                 onClick = { onTriggerAction(action) },
                                 shape = RoundedCornerShape(14.dp),
@@ -335,7 +352,7 @@ fun TuyaCategorizedControlPanel(
         }
 
         // Fallback if an ESP32 page uses a custom canvas-only UI with zero standard HTML elements
-        if (!schema.hasParsedContent) {
+        if (!hasVisibleControls) {
             item {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
@@ -348,12 +365,20 @@ fun TuyaCategorizedControlPanel(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Scanning ESP32 Web Elements…",
+                            text = when (selectedCategoryTab) {
+                                TuyaControlCategoryTab.MAIN -> "No main controls mapped"
+                                TuyaControlCategoryTab.TIMERS -> "No timer controls exposed"
+                                TuyaControlCategoryTab.SETTINGS -> "No settings controls exposed"
+                            },
                             style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "The bridge only displays controls it can identify on the actual ESP32 page. It will not invent controls or display sample values.",
+                            text = when (selectedCategoryTab) {
+                                TuyaControlCategoryTab.MAIN -> "The bridge only displays controls it can identify on the actual ESP32 page. It will not invent controls or sample values."
+                                TuyaControlCategoryTab.TIMERS -> "No timer or schedule controls were found on the actual ESP32 page."
+                                TuyaControlCategoryTab.SETTINGS -> "No configuration controls were found on the actual ESP32 page."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
