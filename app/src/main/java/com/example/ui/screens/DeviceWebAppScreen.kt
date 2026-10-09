@@ -81,7 +81,7 @@ import com.example.ui.theme.OnlineEmerald
 import com.example.ui.webview.EspWebDomBridge
 
 enum class PresentationMode(val label: String) {
-    TUYA_CATEGORIZED("Tuya Smart UI"),
+    TUYA_CATEGORIZED("Tuya UI"),
     STYLED_WEB("Styled Web"),
     RAW_WEB("Raw Web")
 }
@@ -330,7 +330,9 @@ fun DeviceWebAppScreen(
                                         text = mode.label,
                                         style = MaterialTheme.typography.labelLarge,
                                         color = if (selected) device.category.accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
                                     )
                                 }
                             }
