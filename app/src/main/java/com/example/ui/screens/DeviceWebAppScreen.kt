@@ -279,65 +279,7 @@ fun DeviceWebAppScreen(
                         }
                     }
 
-                    // Segmented Switcher: "Tuya Smart UI" (Categorized) vs "Styled Web" vs "Raw Web"
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp)
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        PresentationMode.entries.forEach { mode ->
-                            val selected = presentationMode == mode
-                            Surface(
-                                onClick = {
-                                    presentationMode = mode
-                                    if (mode == PresentationMode.STYLED_WEB) {
-                                        webViewRef?.evaluateJavascript(EspWebDomBridge.TUYA_WEB_STYLE_CSS_JS, null)
-                                    }
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (selected) {
-                                    device.category.accentColor.copy(alpha = 0.20f)
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                                },
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = if (selected) device.category.accentColor else MaterialTheme.colorScheme.outline
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("mode_tab_${mode.name}")
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(vertical = 7.dp, horizontal = 8.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = if (mode == PresentationMode.TUYA_CATEGORIZED) {
-                                            Icons.Filled.AutoAwesomeMosaic
-                                        } else {
-                                            Icons.Filled.Web
-                                        },
-                                        contentDescription = null,
-                                        tint = if (selected) device.category.accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = mode.label,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = if (selected) device.category.accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                        }
-                    }
+
                 }
             }
 
@@ -359,7 +301,7 @@ fun DeviceWebAppScreen(
                     .weight(1f)
             ) {
                 // Live WebView Engine (Visible when in STYLED_WEB / RAW_WEB, or running silently in background when in TUYA_CATEGORIZED)
-                val showDirectWebView = presentationMode != PresentationMode.TUYA_CATEGORIZED && !hasLoadError
+                val showDirectWebView = false
                 AndroidView(
                     modifier = Modifier
                         .fillMaxSize()
@@ -454,7 +396,7 @@ fun DeviceWebAppScreen(
                 )
 
                 // Primary View: Categorized Tuya Native Control UI
-                if (presentationMode == PresentationMode.TUYA_CATEGORIZED && (!hasLoadError || isSimulatedPreview)) {
+                if (presentationMode == PresentationMode.TUYA_CATEGORIZED && !hasLoadError) {
                     TuyaCategorizedControlPanel(
                         device = device,
                         schema = parsedSchema,
@@ -488,10 +430,6 @@ fun DeviceWebAppScreen(
                                 "window.__tuyaTriggerElement('${action.id}', null);",
                                 null
                             )
-                        },
-                        onSwitchToRawWeb = {
-                            presentationMode = PresentationMode.STYLED_WEB
-                            webViewRef?.evaluateJavascript(EspWebDomBridge.TUYA_WEB_STYLE_CSS_JS, null)
                         },
                         modifier = Modifier.fillMaxSize()
                     )

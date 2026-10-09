@@ -94,7 +94,6 @@ fun TuyaCategorizedControlPanel(
     onTriggerColor: (BridgedColorPicker, String) -> Unit,
     onTriggerMode: (BridgedSelectMode, String) -> Unit,
     onTriggerAction: (BridgedAction) -> Unit,
-    onSwitchToRawWeb: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedCategoryTab by remember { mutableStateOf(TuyaControlCategoryTab.ALL) }
@@ -354,14 +353,10 @@ fun TuyaCategorizedControlPanel(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "If this ESP32 uses a custom canvas-only interface, you can switch to the Styled Web view at the top anytime.",
+                            text = "The bridge only displays controls it can identify on the actual ESP32 page. It will not invent controls or display sample values.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        FilledTonalButton(onClick = onSwitchToRawWeb) {
-                            Text("Switch to Web View")
-                        }
                     }
                 }
             }
