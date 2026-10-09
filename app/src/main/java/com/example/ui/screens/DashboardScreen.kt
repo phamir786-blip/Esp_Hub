@@ -86,6 +86,7 @@ fun DashboardScreen(
         val gridColumns = when {
             maxWidth >= 840.dp -> 4
             maxWidth >= 600.dp -> 3
+            maxWidth < 350.dp -> 1
             else -> 2
         }
 
@@ -159,7 +160,10 @@ fun DashboardScreen(
                                 "Local mDNS Hub • Tap to scan Wi-Fi"
                             },
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isScanningMdns) ElectricCyan else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isScanningMdns) ElectricCyan else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
